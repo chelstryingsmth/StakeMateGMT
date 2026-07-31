@@ -1184,20 +1184,38 @@ export default function Protocol() {
   }, [filter, pacts.pacts, wallet.address]);
 
   const locked = useMemo(
-    () =>
-      relevantGoals
-        .filter((goal) =>
-          ['pending-verifier', 'active'].includes(goal.status),
-        )
-        .reduce((sum, goal) => sum + goal.amount, 0) +
-      relevantPacts
-        .filter((pact) => ['waiting', 'active'].includes(pact.status))
-        .reduce(
-          (sum, pact) =>
-            sum + pact.stake * (pact.status === 'active' ? 2 : 1),
-          0,
-        ),
-    [relevantGoals, relevantPacts],
+    () => {
+      const address = wallet.address;
+      if (!address) return 0;
+
+      const soloLocked = relevantGoals.reduce((sum, goal) => {
+        if (
+          sameAddress(address, goal.owner) &&
+          ['pending-verifier', 'active'].includes(goal.status)
+        ) {
+          return sum + goal.amount;
+        }
+        return sum;
+      }, 0);
+
+      const pactLocked = relevantPacts.reduce((sum, pact) => {
+        const isCreator = sameAddress(address, pact.creator);
+        const isPartner = sameAddress(address, pact.partnerAddress);
+
+        if (isCreator && pact.status === 'waiting') {
+          return sum + pact.stake;
+        }
+
+        if ((isCreator || isPartner) && pact.status === 'active') {
+          return sum + pact.stake;
+        }
+
+        return sum;
+      }, 0);
+
+      return soloLocked + pactLocked;
+    },
+    [relevantGoals, relevantPacts, wallet.address],
   );
 
   if (!isContractConfigured) {
