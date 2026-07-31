@@ -1,2 +1,25 @@
 # StakeMate
-StakeMate is a blockchain-based accountability platform designed to help people stay committed to personal goals by combining financial motivation, social accountability, and transparent smart-contract enforcement. Many people struggle to maintain habits such as exercising, studying, saving money, or completing daily tasks because traditional habit-tracking applications rely heavily on self-reporting and provide little consequence for failure. With StakeMate, two users create a commitment, lock equal amounts of BOT as stakes, choose a duration, and select how progress will be verified. On-chain commitments can be proven through blockchain-recorded actions such as daily check-ins, while real-world commitments use submitted evidence that is reviewed by an accountability partner. At the end of the commitment period, the smart contract calculates the results and distributes the locked stakes according to the agreed rules. StakeMate creates a fair, transparent, and tamper-resistant system that encourages users to keep their promises while clearly recognizing the difference between activities that blockchain can verify automatically and those that still require human judgment.
+
+A responsive, frontend-only prototype for a two-person Web3 accountability app. It uses mock pacts and local UI state only—no wallet, BOT Chain, contract, backend, database, or transactions are connected.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Run `npm run check` for TypeScript validation and `npm run build` for a production build.
+
+## Routes
+
+- `/` — landing page
+- `/dashboard` — mock pact overview
+- `/pacts/new` — four-step pact creation flow
+- `/pacts/1`, `/pacts/2`, `/pacts/3`, `/pacts/4` — pact states
+- `/pacts/:id/history` — commitment history
+- `/pacts/:id/results` — results/finalization UI
+
+## Future integration
+
+Blockchain values belong in `src/config/blockchain.ts`, and the final ABI belongs in `src/contracts/StakeMateABI.ts`. Replace the mock-throwing functions in `src/services/walletService.ts` and `src/services/pactService.ts` with MetaMask, ethers.js, BOT Chain, and deployed-contract logic. Pages consume mock data through hooks, so integration can be swapped in without redesigning UI components.
