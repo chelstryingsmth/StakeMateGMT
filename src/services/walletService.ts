@@ -46,6 +46,22 @@ export function resetWalletProvider(): void {
   browserProvider = null;
 }
 
+export async function revokeWalletPermissions(): Promise<void> {
+  const ethereum = getInjectedWallet();
+  if (!ethereum) return;
+
+  try {
+    await ethereum.request({
+      method: 'wallet_revokePermissions',
+      params: [{ eth_accounts: {} }],
+    });
+  } catch {
+    // Some injected wallets do not support explicit permission revocation.
+  }
+
+  resetWalletProvider();
+}
+
 function providerFor(ethereum: InjectedWallet): BrowserProvider {
   if (!browserProvider) browserProvider = new BrowserProvider(ethereum);
   return browserProvider;

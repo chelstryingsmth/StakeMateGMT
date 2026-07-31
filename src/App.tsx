@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   Check,
@@ -32,13 +32,81 @@ const shortAddress = (address: string) =>
 function WalletControl() {
   const wallet = useWallet();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
 
   if (wallet.connected && wallet.network === 'BOT Chain') {
     return (
-      <Link className="btn secondary small" to="/app" title={wallet.address ?? ''}>
-        <span className="network-dot" />
-        {shortAddress(wallet.address!)}
-      </Link>
+      <div className="wallet-menu" ref={menuRef} style={{ position: 'relative' }}>
+        <button
+          className="btn secondary small"
+          type="button"
+          title="Wallet actions"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          <span className="network-dot" />
+          {shortAddress(wallet.address!)}
+        </button>
+        {menuOpen && (
+          <div
+            className="wallet-menu-panel"
+            role="menu"
+            aria-label="Wallet actions"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 10px)',
+              right: 0,
+              minWidth: '198px',
+              padding: '14px',
+              background: '#f9f6ef',
+              border: '1px solid #171512',
+              borderRadius: '4px',
+              boxShadow: '0 14px 30px rgba(23, 21, 18, 0.12)',
+              zIndex: 20,
+            }}
+          >
+            <small>Connected wallet</small>
+            <b>{shortAddress(wallet.address!)}</b>
+            <button
+              className="btn danger small full"
+              type="button"
+              onClick={() => {
+                void wallet.disconnect();
+                setMenuOpen(false);
+                navigate('/');
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
