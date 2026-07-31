@@ -1,0 +1,1 @@
+import { useState } from 'react'; export const useWallet=()=>{const [connected,setConnected]=useState(false);return {connected,address:connected?'0x8A1d...F42C':null,balance:14.8,connect:()=>setConnected(true)};};

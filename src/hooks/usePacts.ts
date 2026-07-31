@@ -1,0 +1,1 @@
+import { mockPacts } from '../data/mockPacts'; export const usePacts=()=>({pacts:mockPacts,loading:false,error:null}); export const usePact=(id:string)=>({pact:mockPacts.find(p=>p.id===id),loading:false,error:null});
