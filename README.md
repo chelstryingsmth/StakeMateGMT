@@ -23,3 +23,4 @@ Run `npm run check` for TypeScript validation and `npm run build` for a producti
 ## Future integration
 
 Blockchain values belong in `src/config/blockchain.ts`, and the final ABI belongs in `src/contracts/StakeMateABI.ts`. Replace the mock-throwing functions in `src/services/walletService.ts` and `src/services/pactService.ts` with MetaMask, ethers.js, BOT Chain, and deployed-contract logic. Pages consume mock data through hooks, so integration can be swapped in without redesigning UI components.
+"# StakeMateGMT" 
