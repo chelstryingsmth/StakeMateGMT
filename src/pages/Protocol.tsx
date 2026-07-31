@@ -147,6 +147,19 @@ function Message({
   );
 }
 
+function PendingWalletNotice({ label }: { label: string | null }) {
+  if (!label) return null;
+
+  return (
+    <div className="protocol-message info">
+      <LoaderCircle className="spin" />
+      <span>
+        Waiting for wallet signature: <b>{label}</b>. Confirm the request in your wallet to continue.
+      </span>
+    </div>
+  );
+}
+
 function useProtocolAction(refresh: () => Promise<void>) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Feedback | null>(null);
@@ -373,6 +386,7 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
           connected wallet.
         </small>
       )}
+      {busy && <PendingWalletNotice label={busy} />}
       <button
         className="btn primary span-2"
         disabled={Boolean(busy) || !formValid}
@@ -559,6 +573,7 @@ function CreateTwoPersonPact({
           addresses.
         </small>
       )}
+      {busy && <PendingWalletNotice label={busy} />}
       <button
         className="btn primary span-2"
         disabled={Boolean(busy) || !formValid}
@@ -719,6 +734,7 @@ function SoloGoalCard({
         </label>
       )}
 
+      {busy && <PendingWalletNotice label={busy} />}
       <div className="protocol-actions">
         {verifier && goal.status === 'pending-verifier' && (
           <button
@@ -983,6 +999,7 @@ function PactCard({
           </div>
         )}
 
+      {busy && <PendingWalletNotice label={busy} />}
       <div className="protocol-actions">
         {pact.status === 'waiting' && (
           <button
@@ -1389,6 +1406,7 @@ export default function Protocol() {
         </div>
       </section>
 
+      {busy && <PendingWalletNotice label={busy} />}
       <section className="claim-strip">
         <div>
           <Clock3 />
