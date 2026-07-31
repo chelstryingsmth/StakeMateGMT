@@ -1,0 +1,44 @@
+{
+  "name": "stakemate",
+  "private": true,
+  "version": "0.2.0",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node scripts/dev-full.js",
+    "dev": "vite",
+    "dev:full": "node scripts/dev-full.js",
+    "build": "tsc -b && vite build",
+    "check": "tsc -b",
+    "chain:local": "hardhat node",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "backend": "node --env-file-if-exists=.env backend/src/server.js",
+    "test:backend": "node --test backend/test/*.test.js",
+    "test:all": "hardhat test && node --test backend/test/*.test.js",
+    "demo:solo": "hardhat run scripts/demo-solo.js",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network botTestnet",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network botMainnet"
+  },
+  "dependencies": {
+    "ethers": "6.13.1",
+    "framer-motion": "12.43.0",
+    "lucide-react": "1.28.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "3.0.6",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.5",
+    "chai": "4.5.0",
+    "hardhat": "2.22.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.2.0"
+  }
+}

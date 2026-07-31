@@ -1,0 +1,15 @@
+node_modules/
+dist/
+artifacts/
+cache/
+.hardhat-runtime/
+.localappdata/
+.env
+.env.*
+!.env.example
+backend/data/*.json
+backend/data/*.tmp
+*.rar
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
