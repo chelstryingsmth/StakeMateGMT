@@ -1254,8 +1254,8 @@ export default function Protocol() {
 
       <div className="live-stats">
         <div>
-          <small>Commitments for this wallet</small>
-          <b>{relevantGoals.length + relevantPacts.length}</b>
+          <small>Active Commitments</small>
+          <b>{relevantPacts.length}</b>
         </div>
         <div>
           <small>BOT currently locked</small>
