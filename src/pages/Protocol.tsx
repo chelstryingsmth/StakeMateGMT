@@ -1130,31 +1130,33 @@ export default function Protocol() {
   const [claimLoading, setClaimLoading] = useState(false);
   const [evidenceOnline, setEvidenceOnline] = useState<boolean | null>(null);
 
-  const refreshClaimable = async () => {
-    if (!wallet.address) {
+  const refreshSharedPacts = async () => {
+    setFilter('all');
+    await refresh();
+  };
+
+  const refreshClaimable = async (address = wallet.address) => {
+    if (!address) {
       setClaimable(0);
       return;
     }
     setClaimLoading(true);
     try {
-      setClaimable(await getClaimable(wallet.address));
+      setClaimable(await getClaimable(address));
     } finally {
       setClaimLoading(false);
     }
   };
 
   const refresh = async () => {
-    await Promise.allSettled([
-      pacts.refresh(),
-      solo.refresh(),
-      refreshClaimable(),
-      wallet.refresh(),
-    ]);
+    await Promise.allSettled([pacts.refresh(), solo.refresh()]);
+    const nextWallet = await wallet.refresh();
+    await refreshClaimable(nextWallet.address);
   };
   const { busy, message, run } = useProtocolAction(refresh);
 
   useEffect(() => {
-    void refreshClaimable().catch(() => undefined);
+    void refreshClaimable(wallet.address).catch(() => undefined);
     // The connected address is the only dependency needed for this read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.address]);
@@ -1352,7 +1354,7 @@ export default function Protocol() {
           title="Both people stake under the same rules."
           copy="Choose objective daily check-ins or a real-world result supported by signed evidence and partner review."
         >
-          <CreateTwoPersonPact afterCreate={refresh} />
+            <CreateTwoPersonPact afterCreate={refreshSharedPacts} />
         </Panel>
       )}
 
