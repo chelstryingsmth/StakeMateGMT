@@ -1200,6 +1200,41 @@ export default function Protocol() {
       : owned.filter((pact) => pact.status === filter);
   }, [filter, pacts.pacts, wallet.address]);
 
+  const activeCommitments = useMemo(
+    () => {
+      const address = wallet.address;
+      if (!address) return 0;
+
+      const soloActive = relevantGoals.reduce((sum, goal) => {
+        if (
+          sameAddress(address, goal.owner) &&
+          ['pending-verifier', 'active'].includes(goal.status)
+        ) {
+          return sum + 1;
+        }
+        return sum;
+      }, 0);
+
+      const pactActive = pacts.pacts.reduce((sum, pact) => {
+        const isCreator = sameAddress(address, pact.creator);
+        const isPartner = sameAddress(address, pact.partnerAddress);
+
+        if (isCreator && pact.status === 'waiting') {
+          return sum + 1;
+        }
+
+        if ((isCreator || isPartner) && pact.status === 'active') {
+          return sum + 1;
+        }
+
+        return sum;
+      }, 0);
+
+      return soloActive + pactActive;
+    },
+    [pacts.pacts, relevantGoals, wallet.address],
+  );
+
   const locked = useMemo(
     () => {
       const address = wallet.address;
@@ -1272,7 +1307,7 @@ export default function Protocol() {
       <div className="live-stats">
         <div>
           <small>Active Commitments</small>
-          <b>{relevantPacts.length}</b>
+          <b>{activeCommitments}</b>
         </div>
         <div>
           <small>BOT currently locked</small>
