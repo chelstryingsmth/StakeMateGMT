@@ -38,6 +38,7 @@ import {
   friendlyContractError,
   getClaimable,
   getCurrentCheckInState,
+  getPacts,
   joinPact,
   rejectSoloGoal,
   reviewProof,
@@ -1130,28 +1131,83 @@ export default function Protocol() {
   const [claimLoading, setClaimLoading] = useState(false);
   const [evidenceOnline, setEvidenceOnline] = useState<boolean | null>(null);
 
+  const waitForPropagation = (ms: number) =>
+    new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
   const refreshSharedPacts = async () => {
     setFilter('all');
+    const previousRelevantCount = relevantPacts.length;
+    const previousTotalCount = pacts.pacts.length;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await Promise.allSettled([pacts.refresh(), solo.refresh()]);
+      const nextWallet = await wallet.refresh();
+      await refreshClaimable(nextWallet.address);
+
+      try {
+        const latestPacts = await getPacts();
+        const latestRelevantCount = latestPacts.filter(
+          (pact) =>
+            sameAddress(wallet.address, pact.creator) ||
+            sameAddress(wallet.address, pact.partnerAddress) ||
+            sameAddress(wallet.address, pact.forfeitureRecipient),
+        ).length;
+
+        if (
+          latestRelevantCount > previousRelevantCount ||
+          latestPacts.length > previousTotalCount
+        ) {
+          return;
+        }
+      } catch {
+        // Ignore transient read failures and try again.
+      }
+
+      if (attempt < 3) {
+        await waitForPropagation(700);
+      }
+    }
+
     await refresh();
   };
 
-  const refreshClaimable = async (address = wallet.address) => {
+  const refreshClaimable = async (
+    address = wallet.address,
+    previousClaimable?: number,
+  ) => {
     if (!address) {
       setClaimable(0);
-      return;
+      return 0;
     }
+
     setClaimLoading(true);
     try {
-      setClaimable(await getClaimable(address));
+      let latestClaimable = previousClaimable ?? 0;
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        latestClaimable = await getClaimable(address);
+        if (
+          typeof previousClaimable !== 'number' ||
+          latestClaimable !== previousClaimable ||
+          attempt === 3
+        ) {
+          break;
+        }
+        await waitForPropagation(700);
+      }
+
+      setClaimable(latestClaimable);
+      return latestClaimable;
     } finally {
       setClaimLoading(false);
     }
   };
 
   const refresh = async () => {
+    const previousClaimable = claimable;
     await Promise.allSettled([pacts.refresh(), solo.refresh()]);
     const nextWallet = await wallet.refresh();
-    await refreshClaimable(nextWallet.address);
+    await refreshClaimable(nextWallet.address, previousClaimable);
   };
   const { busy, message, run } = useProtocolAction(refresh);
 
