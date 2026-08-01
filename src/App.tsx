@@ -1,22 +1,12 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   Check,
-  Coins,
   ExternalLink,
   Goal,
   Handshake,
   LoaderCircle,
   LockKeyhole,
-  ReceiptText,
   ShieldCheck,
   UserRoundCheck,
   Users,
@@ -32,13 +22,9 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { BOT_CHAIN_CONFIG } from './config/blockchain';
-import { publicReceiptPath } from './components/CommitmentDisplay';
 import { useWallet } from './hooks/useWallet';
 
 const Protocol = lazy(() => import('./pages/Protocol'));
-const CommitmentReceipt = lazy(() => import('./pages/CommitmentReceipt'));
-
-const TESTNET_FAUCET_URL = 'https://faucet.botchain.ai';
 
 const shortAddress = (address: string) =>
   `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -163,11 +149,6 @@ function Shell({ children }: { children: ReactNode }) {
           >
             Contract
           </a>
-          {BOT_CHAIN_CONFIG.networkName === 'testnet' && (
-            <a href={TESTNET_FAUCET_URL} target="_blank" rel="noreferrer">
-              Test BOT
-            </a>
-          )}
         </nav>
         <div className="head-actions">
           <WalletControl />
@@ -295,8 +276,6 @@ function Landing() {
         </div>
       </section>
 
-      <ReceiptLookup />
-
       <section className="cta">
         <div>
           <span className="eyebrow">CONNECTED TO THE LIVE CONTRACT</span>
@@ -311,58 +290,6 @@ function Landing() {
         </Link>
       </section>
     </Shell>
-  );
-}
-
-function ReceiptLookup() {
-  const navigate = useNavigate();
-  const [kind, setKind] = useState<'goal' | 'pact'>('goal');
-  const [id, setId] = useState('');
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const normalizedId = id.trim();
-    if (!/^\d+$/.test(normalizedId) || Number(normalizedId) < 1) return;
-    navigate(publicReceiptPath(kind, normalizedId));
-  };
-
-  return (
-    <section className="receipt-lookup-section">
-      <div>
-        <span className="section-kicker">VERIFY WITHOUT A WALLET</span>
-        <h2>Open a public commitment receipt.</h2>
-        <p>
-          Inspect stake, participants, evidence, deadlines, and settlement directly from the live contract.
-        </p>
-      </div>
-      <form className="receipt-lookup" onSubmit={submit}>
-        <label>
-          <span>Commitment type</span>
-          <select value={kind} onChange={(event) => setKind(event.target.value as 'goal' | 'pact')}>
-            <option value="goal">Personal goal</option>
-            <option value="pact">Two-person pact</option>
-          </select>
-        </label>
-        <label>
-          <span>On-chain ID</span>
-          <input
-            value={id}
-            inputMode="numeric"
-            pattern="[0-9]+"
-            placeholder="e.g. 1"
-            onChange={(event) => setId(event.target.value)}
-          />
-        </label>
-        <button className="btn primary" disabled={!/^\d+$/.test(id.trim())}>
-          <ReceiptText /> Verify receipt
-        </button>
-        {BOT_CHAIN_CONFIG.networkName === 'testnet' && (
-          <a className="receipt-faucet-link" href={TESTNET_FAUCET_URL} target="_blank" rel="noreferrer">
-            <Coins /> Need test BOT? Open the official faucet <ExternalLink />
-          </a>
-        )}
-      </form>
-    </section>
   );
 }
 
@@ -382,29 +309,12 @@ function Workspace() {
   );
 }
 
-function ReceiptPage() {
-  return (
-    <Shell>
-      <Suspense
-        fallback={
-          <div className="workspace-loading">
-            <LoaderCircle className="spin" /> Reading live commitment receipt…
-          </div>
-        }
-      >
-        <CommitmentReceipt />
-      </Suspense>
-    </Shell>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/app" element={<Workspace />} />
-        <Route path="/receipt/:kind/:id" element={<ReceiptPage />} />
         <Route path="/dashboard" element={<Navigate to="/app" replace />} />
         <Route path="/protocol" element={<Navigate to="/app" replace />} />
         <Route path="/pacts/new" element={<Navigate to="/app" replace />} />

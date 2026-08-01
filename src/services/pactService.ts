@@ -43,15 +43,6 @@ export interface CheckInState {
   checked: boolean;
 }
 
-export type TransactionProgressPhase = 'submitted' | 'confirmed';
-
-export interface TransactionProgressDetail {
-  phase: TransactionProgressPhase;
-  hash: string;
-}
-
-export const STAKEMATE_TRANSACTION_EVENT = 'stakemate:transaction-progress';
-
 type RawChallenge = {
   creator: string;
   partner: string;
@@ -184,21 +175,7 @@ async function send(
   operation: (contract: Contract) => Promise<ContractTransactionResponse>,
 ): Promise<ContractTransactionResponse> {
   const transaction = await operation(await writeContract());
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent<TransactionProgressDetail>(STAKEMATE_TRANSACTION_EVENT, {
-        detail: { phase: 'submitted', hash: transaction.hash },
-      }),
-    );
-  }
   await transaction.wait();
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent<TransactionProgressDetail>(STAKEMATE_TRANSACTION_EVENT, {
-        detail: { phase: 'confirmed', hash: transaction.hash },
-      }),
-    );
-  }
   return transaction;
 }
 
