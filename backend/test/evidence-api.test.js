@@ -149,3 +149,30 @@ test("stores solo-goal evidence in a separate commitment namespace", async (t) =
   assert.equal(retrieval.records[0].commitmentType, "solo-goal");
   assert.equal(retrieval.records[0].soloGoalId, "3");
 });
+
+test("rejects malformed commitment ids with a validation error", async (t) => {
+  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "stakemate-test-"));
+  const { server } = await createStakeMateServer({
+    storePath: path.join(temporaryDirectory, "evidence.json"),
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    await fs.rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const participant = Wallet.createRandom();
+  const response = await postJson(baseUrl, "/api/evidence/prepare", {
+    chainId: 968,
+    contractAddress: Wallet.createRandom().address,
+    challengeId: "not-a-number",
+    participant: participant.address,
+    uri: "https://example.com/evidence",
+    issuedAt: Date.now(),
+  });
+
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /positive integer/i);
+});

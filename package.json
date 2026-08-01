@@ -21,7 +21,7 @@
     "deploy:mainnet": "hardhat run scripts/deploy.js --network botMainnet"
   },
   "dependencies": {
-    "ethers": "6.13.1",
+    "ethers": "6.17.0",
     "framer-motion": "12.43.0",
     "lucide-react": "1.28.0",
     "react": "19.2.8",

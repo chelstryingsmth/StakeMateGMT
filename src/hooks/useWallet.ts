@@ -11,6 +11,7 @@ import {
   getInjectedWallet,
   readWalletState,
   resetWalletProvider,
+  revokeWalletPermissions,
 } from '../services/walletService';
 
 let walletSnapshot = disconnectedWallet;
@@ -82,7 +83,8 @@ export function useWallet() {
     return next;
   }, []);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    await revokeWalletPermissions();
     resetWalletProvider();
     publish(disconnectedWallet);
     setError(null);

@@ -27,7 +27,13 @@ function requireAddress(value, field) {
 }
 
 function requirePositiveInteger(value, field) {
-  const parsed = typeof value === "bigint" ? value : BigInt(String(value));
+  let parsed;
+  try {
+    parsed = typeof value === "bigint" ? value : BigInt(String(value));
+  } catch {
+    throw new EvidenceValidationError(`${field} must be a positive integer`);
+  }
+
   if (parsed <= 0n) {
     throw new EvidenceValidationError(`${field} must be a positive integer`);
   }
