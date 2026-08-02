@@ -164,11 +164,6 @@ function Shell({ children }: { children: ReactNode }) {
           >
             Contract
           </a>
-          {BOT_CHAIN_CONFIG.networkName === 'testnet' && (
-            <a href={TESTNET_FAUCET_URL} target="_blank" rel="noreferrer">
-              Test BOT
-            </a>
-          )}
         </nav>
         <div className="head-actions">
           <WalletControl />
