@@ -31,6 +31,7 @@ import {
   Routes,
   useNavigate,
 } from 'react-router-dom';
+import TopLoader from "./components/TopLoader";
 import { BOT_CHAIN_CONFIG } from './config/blockchain';
 import { publicReceiptPath } from './components/CommitmentDisplay';
 import { useWallet } from './hooks/useWallet';
@@ -401,6 +402,7 @@ function ReceiptPage() {
 export default function App() {
   return (
     <BrowserRouter>
+      <TopLoader />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/app" element={<Workspace />} />

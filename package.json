@@ -25,6 +25,7 @@
     "ethers": "6.17.0",
     "framer-motion": "12.43.0",
     "lucide-react": "1.28.0",
+    "nprogress": "^0.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router-dom": "7.18.2"
@@ -33,6 +34,7 @@
     "@nomicfoundation/hardhat-ethers": "3.0.6",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.1.2",
+    "@types/nprogress": "^0.2.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.5",
