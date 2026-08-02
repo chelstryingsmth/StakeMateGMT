@@ -7,6 +7,8 @@ import {
 } from 'react';
 import { isAddress, type ContractTransactionResponse } from 'ethers';
 import {
+  BellRing,
+  Check,
   CheckCircle2,
   CircleAlert,
   Clock3,
@@ -22,6 +24,14 @@ import {
   Wallet,
   XCircle,
 } from 'lucide-react';
+import {
+  DeadlineCountdown,
+  EvidenceVerificationCard,
+  LifecycleStepper,
+  ShareCommitment,
+  goalLifecycle,
+  pactLifecycle,
+} from '../components/CommitmentDisplay';
 import { BOT_CHAIN_CONFIG, isContractConfigured } from '../config/blockchain';
 import { usePacts, useSoloGoals } from '../hooks/usePacts';
 import { useWallet } from '../hooks/useWallet';
@@ -44,10 +54,12 @@ import {
   reviewProof,
   submitProof,
   submitSoloGoalProof,
+  STAKEMATE_TRANSACTION_EVENT,
   transactionUrl,
   withdrawReward,
   withdrawUnjoined,
 } from '../services/pactService';
+import type { TransactionProgressDetail } from '../services/pactService';
 import type {
   Evidence,
   Pact,
@@ -61,6 +73,12 @@ type Feedback = {
   kind: 'error' | 'success';
   text: string;
   transactionHash?: string;
+};
+
+type TransactionProgress = {
+  label: string;
+  phase: 'signature' | TransactionProgressDetail['phase'];
+  hash?: string;
 };
 
 const sameAddress = (left?: string | null, right?: string | null) =>
@@ -148,14 +166,25 @@ function Message({
   );
 }
 
-function PendingWalletNotice({ label }: { label: string | null }) {
-  if (!label) return null;
+function PendingWalletNotice({ progress }: { progress: TransactionProgress | null }) {
+  if (!progress) return null;
+
+  const submitted = progress.phase !== 'signature';
 
   return (
     <div className="protocol-message info">
       <LoaderCircle className="spin" />
       <span>
-        Waiting for wallet signature: <b>{label}</b>. Confirm the request in your wallet to continue.
+        {submitted ? (
+          <>
+            Transaction submitted for <b>{progress.label}</b>. Waiting for network confirmation.
+            {progress.hash && (
+              <>{' '}<a href={transactionUrl(progress.hash)} target="_blank" rel="noreferrer">Track transaction <ExternalLink size={13} /></a></>
+            )}
+          </>
+        ) : (
+          <>Waiting for wallet signature: <b>{progress.label}</b>. Confirm the request in your wallet to continue.</>
+        )}
       </span>
     </div>
   );
@@ -164,10 +193,17 @@ function PendingWalletNotice({ label }: { label: string | null }) {
 function useProtocolAction(refresh: () => Promise<void>) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Feedback | null>(null);
+  const [progress, setProgress] = useState<TransactionProgress | null>(null);
 
   const run = async (name: string, action: Action) => {
     setBusy(name);
     setMessage(null);
+    setProgress({ label: name, phase: 'signature' });
+    const handleProgress = (event: Event) => {
+      const detail = (event as CustomEvent<TransactionProgressDetail>).detail;
+      setProgress({ label: name, phase: detail.phase, hash: detail.hash });
+    };
+    window.addEventListener(STAKEMATE_TRANSACTION_EVENT, handleProgress);
     try {
       const result = await action();
       setMessage({
@@ -184,11 +220,13 @@ function useProtocolAction(refresh: () => Promise<void>) {
       });
       return false;
     } finally {
+      window.removeEventListener(STAKEMATE_TRANSACTION_EVENT, handleProgress);
+      setProgress(null);
       setBusy(null);
     }
   };
 
-  return { busy, message, setMessage, run };
+  return { busy, message, setMessage, progress, run };
 }
 
 function ConnectGate({ evidenceOnline }: { evidenceOnline: boolean | null }) {
@@ -253,16 +291,29 @@ function AddressLink({
   address: string;
   label?: string;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(address);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1_500);
+  };
+
   return (
-    <a
-      className="address-link"
-      href={addressUrl(address)}
-      target="_blank"
-      rel="noreferrer"
-      title={address}
-    >
-      {label ?? shortAddress(address)} <ExternalLink size={12} />
-    </a>
+    <span className="address-with-copy">
+      <a
+        className="address-link"
+        href={addressUrl(address)}
+        target="_blank"
+        rel="noreferrer"
+        title={address}
+      >
+        {label ?? shortAddress(address)} <ExternalLink size={12} />
+      </a>
+      <button type="button" title="Copy wallet address" onClick={() => void copy()}>
+        {copied ? <Check /> : <Copy />}
+      </button>
+    </span>
   );
 }
 
@@ -274,7 +325,7 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
   const [stake, setStake] = useState('1');
   const [durationDays, setDurationDays] = useState('14');
   const [reviewHours, setReviewHours] = useState('24');
-  const { busy, message, run } = useProtocolAction(afterCreate);
+  const { busy, message, progress, run } = useProtocolAction(afterCreate);
 
   const addressesValid =
     isCompatibleAddress(verifier) &&
@@ -387,7 +438,7 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
           connected wallet.
         </small>
       )}
-      {busy && <PendingWalletNotice label={busy} />}
+      <PendingWalletNotice progress={progress} />
       <button
         className="btn primary span-2"
         disabled={Boolean(busy) || !formValid}
@@ -423,7 +474,7 @@ function CreateTwoPersonPact({
   const [duration, setDuration] = useState('30');
   const [required, setRequired] = useState('25');
   const [reviewHours, setReviewHours] = useState('24');
-  const { busy, message, run } = useProtocolAction(afterCreate);
+  const { busy, message, progress, run } = useProtocolAction(afterCreate);
 
   const addressesValid =
     isCompatibleAddress(partner) &&
@@ -574,7 +625,7 @@ function CreateTwoPersonPact({
           addresses.
         </small>
       )}
-      {busy && <PendingWalletNotice label={busy} />}
+      <PendingWalletNotice progress={progress} />
       <button
         className="btn primary span-2"
         disabled={Boolean(busy) || !formValid}
@@ -603,19 +654,7 @@ function EvidenceView({
   evidence: Evidence;
   label: string;
 }) {
-  if (!evidence.uri) return null;
-  return (
-    <div className="evidence-view">
-      <span>
-        <FileCheck2 />
-        <b>{label}</b>
-        <small>{evidence.decision}</small>
-      </span>
-      <a href={evidence.uri} target="_blank" rel="noreferrer">
-        Open proof <ExternalLink size={13} />
-      </a>
-    </div>
-  );
+  return <EvidenceVerificationCard evidence={evidence} label={label} />;
 }
 
 function SoloGoalCard({
@@ -630,7 +669,7 @@ function SoloGoalCard({
   const [uri, setUri] = useState('');
   const [note, setNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
-  const { busy, message, run } = useProtocolAction(refresh);
+  const { busy, message, progress, run } = useProtocolAction(refresh);
   const owner = sameAddress(address, goal.owner);
   const verifier = sameAddress(address, goal.verifier);
   const neutral = sameAddress(address, goal.failureRecipient);
@@ -653,7 +692,7 @@ function SoloGoalCard({
   if (neutral) role = 'You are the neutral recipient';
 
   return (
-    <article className="protocol-card">
+    <article className="protocol-card" id={`goal-${goal.id}`}>
       <div className="protocol-card-head">
         <span className={`badge ${goal.status}`}>
           {goal.status.replace('-', ' ')}
@@ -693,6 +732,9 @@ function SoloGoalCard({
           neutral recipient
         </span>
       </div>
+
+      <LifecycleStepper steps={goalLifecycle(goal)} compact />
+      <ShareCommitment kind="goal" id={goal.id} title={goal.title} compact />
 
       <EvidenceView evidence={goal.evidence} label="Owner’s signed proof" />
 
@@ -735,7 +777,7 @@ function SoloGoalCard({
         </label>
       )}
 
-      {busy && <PendingWalletNotice label={busy} />}
+      <PendingWalletNotice progress={progress} />
       <div className="protocol-actions">
         {verifier && goal.status === 'pending-verifier' && (
           <button
@@ -801,7 +843,7 @@ function SoloGoalCard({
       {goal.status === 'active' && !canSubmit && !canReview && !canExpire && (
         <p className="next-action">
           <Clock3 /> Waiting for the goal deadline on{' '}
-          {dateTime(goal.goalDeadline)}.
+          {dateTime(goal.goalDeadline)}. <DeadlineCountdown timestamp={goal.goalDeadline} />
         </p>
       )}
       {message && (
@@ -832,7 +874,7 @@ function PactCard({
     dayIndex: number | null;
     checked: boolean;
   }>({ dayIndex: null, checked: false });
-  const { busy, message, run } = useProtocolAction(refresh);
+  const { busy, message, progress, run } = useProtocolAction(refresh);
   const creator = sameAddress(address, pact.creator);
   const partner = sameAddress(address, pact.partnerAddress);
   const participant = creator || partner;
@@ -897,7 +939,7 @@ function PactCard({
   };
 
   return (
-    <article className="protocol-card">
+    <article className="protocol-card" id={`pact-${pact.id}`}>
       <div className="protocol-card-head">
         <span className={`badge ${pact.status}`}>{pact.status}</span>
         <span>
@@ -956,6 +998,9 @@ function PactCard({
         )}
       </div>
 
+      <LifecycleStepper steps={pactLifecycle(pact)} compact />
+      <ShareCommitment kind="pact" id={pact.id} title={pact.title} compact />
+
       {pact.mode === 'peer' && (
         <div className="evidence-list">
           <EvidenceView
@@ -1000,7 +1045,7 @@ function PactCard({
           </div>
         )}
 
-      {busy && <PendingWalletNotice label={busy} />}
+      <PendingWalletNotice progress={progress} />
       <div className="protocol-actions">
         {pact.status === 'waiting' && (
           <button
@@ -1104,6 +1149,7 @@ function PactCard({
       {pact.status === 'active' && (
         <p className="next-action">
           <Clock3 /> {pact.nextAction}
+          {beforeEnd ? <> · <DeadlineCountdown timestamp={pact.endTime} /></> : ''}
           {pact.mode === 'peer' && pact.reviewDeadline
             ? ` · Review closes ${dateTime(pact.reviewDeadline)}`
             : ''}
@@ -1118,6 +1164,54 @@ function PactCard({
         </Message>
       )}
     </article>
+  );
+}
+
+type ActionInboxItem = {
+  key: string;
+  kind: 'goal' | 'pact' | 'payout';
+  target: string;
+  title: string;
+  action: string;
+  detail: string;
+};
+
+function ActionInbox({
+  items,
+  onOpenPact,
+}: {
+  items: ActionInboxItem[];
+  onOpenPact: () => void;
+}) {
+  return (
+    <section className="action-inbox" aria-label="Wallet action inbox">
+      <div className="action-inbox-head">
+        <span><BellRing /><b>Action inbox</b></span>
+        <em>{items.length} {items.length === 1 ? 'task' : 'tasks'}</em>
+      </div>
+      {items.length === 0 ? (
+        <div className="action-inbox-empty">
+          <CheckCircle2 />
+          <span><b>You are all caught up.</b><small>No commitment needs this wallet right now.</small></span>
+        </div>
+      ) : (
+        <div className="action-inbox-list">
+          {items.map((item) => (
+            <a
+              key={item.key}
+              href={`#${item.target}`}
+              onClick={() => {
+                if (item.kind === 'pact') onOpenPact();
+              }}
+            >
+              <span className={`action-kind ${item.kind}`}>{item.kind}</span>
+              <span><b>{item.action}</b><small>{item.title} · {item.detail}</small></span>
+              <ExternalLink />
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1209,7 +1303,7 @@ export default function Protocol() {
     const nextWallet = await wallet.refresh();
     await refreshClaimable(nextWallet.address, previousClaimable);
   };
-  const { busy, message, run } = useProtocolAction(refresh);
+  const { busy, message, progress, run } = useProtocolAction(refresh);
 
   useEffect(() => {
     void refreshClaimable(wallet.address).catch(() => undefined);
@@ -1230,6 +1324,24 @@ export default function Protocol() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (pacts.loading || solo.loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const pactId = params.get('pact');
+    const goalId = params.get('goal');
+    const targetId = pactId ? `pact-${pactId}` : goalId ? `goal-${goalId}` : null;
+    if (!targetId) return;
+    if (pactId) setFilter('all');
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('receipt-highlight');
+      window.setTimeout(() => target.classList.remove('receipt-highlight'), 2_400);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pacts.loading, pacts.pacts, solo.goals, solo.loading]);
 
   const relevantGoals = useMemo(
     () =>
@@ -1292,6 +1404,52 @@ export default function Protocol() {
     },
     [pacts.pacts, relevantGoals, wallet.address],
   );
+
+  const actionItems = useMemo<ActionInboxItem[]>(() => {
+    const address = wallet.address;
+    if (!address) return [];
+    const now = Date.now() / 1_000;
+    const items: ActionInboxItem[] = [];
+
+    for (const goal of relevantGoals) {
+      const owner = sameAddress(address, goal.owner);
+      const verifier = sameAddress(address, goal.verifier);
+      if (verifier && goal.status === 'pending-verifier') {
+        items.push({ key: `goal-accept-${goal.id}`, kind: 'goal', target: `goal-${goal.id}`, title: goal.title, action: 'Accept verifier role', detail: `Goal #${goal.id}` });
+      } else if (owner && goal.status === 'active' && now < goal.goalDeadline && !goal.evidence.uri) {
+        items.push({ key: `goal-proof-${goal.id}`, kind: 'goal', target: `goal-${goal.id}`, title: goal.title, action: 'Submit signed proof', detail: `Goal #${goal.id}` });
+      } else if (verifier && goal.status === 'active' && now >= goal.goalDeadline && now <= goal.reviewDeadline && goal.evidence.uri) {
+        items.push({ key: `goal-review-${goal.id}`, kind: 'goal', target: `goal-${goal.id}`, title: goal.title, action: 'Review submitted evidence', detail: `Goal #${goal.id}` });
+      } else if (goal.status === 'active' && goal.reviewDeadline > 0 && now > goal.reviewDeadline) {
+        items.push({ key: `goal-finalize-${goal.id}`, kind: 'goal', target: `goal-${goal.id}`, title: goal.title, action: 'Finalize ignored review', detail: `Goal #${goal.id}` });
+      }
+    }
+
+    for (const pact of pacts.pacts) {
+      const creator = sameAddress(address, pact.creator);
+      const partner = sameAddress(address, pact.partnerAddress);
+      const participant = creator || partner;
+      const beforeEnd = pact.endTime > 0 && now < pact.endTime;
+      const ownEvidence = creator ? pact.creatorEvidence : pact.partnerEvidence;
+      const otherEvidence = creator ? pact.partnerEvidence : pact.creatorEvidence;
+      if (partner && pact.status === 'waiting') {
+        items.push({ key: `pact-join-${pact.id}`, kind: 'pact', target: `pact-${pact.id}`, title: pact.title, action: 'Join and match the stake', detail: `Pact #${pact.id}` });
+      } else if (participant && pact.status === 'active' && pact.mode === 'onchain' && beforeEnd) {
+        items.push({ key: `pact-checkin-${pact.id}`, kind: 'pact', target: `pact-${pact.id}`, title: pact.title, action: 'Check today’s on-chain status', detail: `Pact #${pact.id}` });
+      } else if (participant && pact.status === 'active' && pact.mode === 'peer' && beforeEnd && !ownEvidence.uri) {
+        items.push({ key: `pact-proof-${pact.id}`, kind: 'pact', target: `pact-${pact.id}`, title: pact.title, action: 'Submit signed evidence', detail: `Pact #${pact.id}` });
+      } else if (participant && pact.status === 'active' && pact.mode === 'peer' && now >= pact.endTime && now <= pact.reviewDeadline && otherEvidence.uri && otherEvidence.decision === 'pending') {
+        items.push({ key: `pact-review-${pact.id}`, kind: 'pact', target: `pact-${pact.id}`, title: pact.title, action: 'Review partner evidence', detail: `Pact #${pact.id}` });
+      } else if (participant && pact.status === 'active' && now >= pact.endTime && (pact.mode === 'onchain' || now >= pact.reviewDeadline)) {
+        items.push({ key: `pact-finalize-${pact.id}`, kind: 'pact', target: `pact-${pact.id}`, title: pact.title, action: 'Finalize on-chain result', detail: `Pact #${pact.id}` });
+      }
+    }
+
+    if (claimable > 0) {
+      items.unshift({ key: 'withdraw-payout', kind: 'payout', target: 'claimable-payout', title: `${claimable.toFixed(4)} BOT available`, action: 'Withdraw credited BOT', detail: 'Safe pull-based payout' });
+    }
+    return items;
+  }, [claimable, pacts.pacts, relevantGoals, wallet.address]);
 
   const locked = useMemo(
     () => {
@@ -1381,6 +1539,10 @@ export default function Protocol() {
         </div>
       </div>
 
+      {wallet.connected && (
+        <ActionInbox items={actionItems} onOpenPact={() => setFilter('all')} />
+      )}
+
       <div className="protocol-tabs">
         <button
           className={tab === 'solo' ? 'selected' : ''}
@@ -1433,13 +1595,13 @@ export default function Protocol() {
         {!wallet.connected && (
           <div className="protocol-empty">
             <Wallet />
-            <p>Connect a wallet to load its personal goals.</p>
+            <p><b>Connect a wallet to load its role.</b><br />Goals appear automatically for owners, verifiers, and neutral recipients.</p>
           </div>
         )}
         {wallet.connected && !solo.loading && relevantGoals.length === 0 && (
           <div className="protocol-empty">
             <UserRoundCheck />
-            <p>No personal goals involve this wallet yet.</p>
+            <p><b>No personal goals involve this wallet yet.</b><br />Create one above or ask a friend to invite this address as verifier.</p>
           </div>
         )}
         <div className="protocol-card-grid">
@@ -1484,7 +1646,7 @@ export default function Protocol() {
         {wallet.connected && !pacts.loading && relevantPacts.length === 0 && (
           <div className="protocol-empty">
             <Users />
-            <p>No pacts match this wallet and filter.</p>
+            <p><b>No pacts match this wallet and filter.</b><br />Choose “All,” create a pact, or open an invitation link from a partner.</p>
           </div>
         )}
         <div className="protocol-card-grid">
@@ -1499,8 +1661,8 @@ export default function Protocol() {
         </div>
       </section>
 
-      {busy && <PendingWalletNotice label={busy} />}
-      <section className="claim-strip">
+      <PendingWalletNotice progress={progress} />
+      <section className="claim-strip" id="claimable-payout">
         <div>
           <Clock3 />
           <span>
