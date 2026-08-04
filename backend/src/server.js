@@ -1,7 +1,7 @@
 const http = require("node:http");
 const path = require("node:path");
 const { URL } = require("node:url");
-const { isAddress } = require("ethers");
+const { getAddress, isAddress } = require("ethers");
 const {
   EvidenceValidationError,
   prepareEvidence,
@@ -58,16 +58,62 @@ function soloEvidenceRouteParts(pathname) {
   return { chainId: Number(match[1]), contractAddress: match[2], soloGoalId: match[3] };
 }
 
+function createDeploymentPolicy({ chainId, contractAddress }) {
+  const configuredChainId = chainId == null || chainId === "" ? null : Number(chainId);
+  if (
+    configuredChainId !== null &&
+    (!Number.isSafeInteger(configuredChainId) || configuredChainId <= 0)
+  ) {
+    throw new Error("BOT_CHAIN_ID must be a positive integer");
+  }
+
+  const configuredContract = contractAddress || null;
+  if (configuredContract && !isAddress(configuredContract)) {
+    throw new Error("STAKEMATE_CONTRACT_ADDRESS must be a valid EVM address");
+  }
+
+  const normalizedContract = configuredContract
+    ? getAddress(configuredContract)
+    : null;
+
+  return {
+    chainId: configuredChainId,
+    contractAddress: normalizedContract,
+    assertAllowed(input) {
+      if (configuredChainId !== null && Number(input?.chainId) !== configuredChainId) {
+        throw new EvidenceValidationError(
+          `evidence must target configured chain ID ${configuredChainId}`
+        );
+      }
+      if (
+        normalizedContract &&
+        (!isAddress(input?.contractAddress) ||
+          getAddress(input.contractAddress) !== normalizedContract)
+      ) {
+        throw new EvidenceValidationError(
+          "evidence must target the configured StakeMate contract"
+        );
+      }
+    },
+  };
+}
+
 async function createStakeMateServer(options = {}) {
   const storePath =
     options.storePath ??
     process.env.EVIDENCE_STORE_PATH ??
     path.join(__dirname, "..", "data", "evidence.json");
   const allowedOrigin = options.allowedOrigin ?? process.env.CORS_ORIGIN ?? "*";
+  const configuredContractAddress =
+    options.contractAddress ?? process.env.STAKEMATE_CONTRACT_ADDRESS;
+  const deploymentPolicy = createDeploymentPolicy({
+    chainId: options.chainId ?? process.env.BOT_CHAIN_ID,
+    contractAddress: configuredContractAddress,
+  });
   const store = await new EvidenceStore(storePath).init();
   const chainReader = createChainReader({
     rpcUrl: options.rpcUrl ?? process.env.BOT_RPC_URL,
-    contractAddress: options.contractAddress ?? process.env.STAKEMATE_CONTRACT_ADDRESS,
+    contractAddress: configuredContractAddress,
   });
 
   const server = http.createServer(async (request, response) => {
@@ -95,13 +141,17 @@ async function createStakeMateServer(options = {}) {
       }
 
       if (request.method === "POST" && requestUrl.pathname === "/api/evidence/prepare") {
-        const prepared = prepareEvidence(await readJson(request));
+        const input = await readJson(request);
+        deploymentPolicy.assertAllowed(input);
+        const prepared = prepareEvidence(input);
         sendJson(response, 200, prepared, allowedOrigin);
         return;
       }
 
       if (request.method === "POST" && requestUrl.pathname === "/api/evidence") {
-        const verified = verifyEvidenceSubmission(await readJson(request));
+        const input = await readJson(request);
+        deploymentPolicy.assertAllowed(input);
+        const verified = verifyEvidenceSubmission(input);
         const record = {
           ...verified.evidence,
           digest: verified.digest,

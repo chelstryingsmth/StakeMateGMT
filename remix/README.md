@@ -1,29 +1,20 @@
 # Deploy StakeMate with Remix
 
-`StakeMate.sol` is the same tested, dependency-free contract used by the
-application. It has no constructor arguments and imports no external contracts.
+`StakeMate.sol` is the dependency-free contract tested by this repository. It
+has no constructor arguments.
 
-1. Open `https://remix.ethereum.org`.
-2. Create `StakeMate.sol` in the Remix file explorer.
+1. Review `MAINNET_DEPLOYMENT.md` and complete all pre-deployment checks.
+2. Open `https://remix.ethereum.org` and create `StakeMate.sol`.
 3. Paste the complete contents of this folder's `StakeMate.sol`.
 4. Select Solidity compiler `0.8.24`.
-5. Open **Advanced Configurations**, choose **Use configuration file**, and
-   replace the generated `remix.config.json` with the contents of this folder's
-   `remix.config.json`. This enables optimization with `200` runs and
-   `viaIR`.
-6. Compile `StakeMate.sol`.
-7. In **Deploy & Run Transactions**, choose **Injected Provider** and confirm
-   that the wallet is connected to BOT Chain Testnet, chain ID `968`.
-8. Leave the deployment value at `0` and deploy `StakeMate`. The contract has no
-   constructor parameters.
-9. Copy the deployed contract address into the project's `.env`:
+5. Enable the optimizer with `200` runs and `viaIR` using this folder's
+   `remix.config.json`.
+6. Compile `StakeMate.sol` and confirm there are no errors.
+7. In **Deploy & Run Transactions**, select **Injected Provider**.
+8. Confirm the wallet shows **BOT Chain Mainnet**, chain ID `677`, and the
+   intended deployer address.
+9. Leave deployment value at `0`, review the estimated fee, and deploy.
+10. Copy the new address and verify it on `https://scan.botchain.ai`.
 
-```env
-VITE_STAKEMATE_CONTRACT_ADDRESS=0x...
-STAKEMATE_CONTRACT_ADDRESS=0x...
-```
-
-Restart `npm run backend` and `npm run dev` after changing `.env`.
-
-Use testnet BOT for the first deployment. Do not deploy to mainnet until the
-contract and product rules have received an independent security review.
+Never paste a recovery phrase or private key into Remix, this repository, or a
+chat. A mainnet deployment is irreversible and costs real BOT.

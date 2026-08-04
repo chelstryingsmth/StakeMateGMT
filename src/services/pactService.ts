@@ -7,7 +7,11 @@ import {
   parseEther,
   type ContractTransactionResponse,
 } from 'ethers';
-import { BOT_CHAIN_CONFIG, isContractConfigured } from '../config/blockchain';
+import {
+  BOT_CHAIN_CONFIG,
+  isContractConfigured,
+  isEvidenceApiConfigured,
+} from '../config/blockchain';
 import { STAKEMATE_ABI } from '../contracts/StakeMateABI';
 import type {
   CreateSoloGoalInput,
@@ -523,6 +527,11 @@ async function signAndStoreEvidence(
   commitmentId: string,
   input: EvidenceInput,
 ): Promise<{ digest: string; uri: string }> {
+  if (!isEvidenceApiConfigured) {
+    throw new Error(
+      'Evidence service is not configured. Set VITE_EVIDENCE_API_URL to the public API URL.',
+    );
+  }
   const signer = await getSigner();
   const participantAddress = await signer.getAddress();
   const request = {
