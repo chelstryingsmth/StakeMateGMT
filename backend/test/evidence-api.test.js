@@ -176,3 +176,44 @@ test("rejects malformed commitment ids with a validation error", async (t) => {
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /positive integer/i);
 });
+
+test("rejects evidence for a different configured chain or contract", async (t) => {
+  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "stakemate-test-"));
+  const contractAddress = Wallet.createRandom().address;
+  const { server } = await createStakeMateServer({
+    storePath: path.join(temporaryDirectory, "evidence.json"),
+    chainId: 677,
+    contractAddress,
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    await fs.rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const participant = Wallet.createRandom();
+  const baseEvidence = {
+    chainId: 677,
+    contractAddress,
+    challengeId: "1",
+    participant: participant.address,
+    uri: "https://example.com/evidence/1",
+    issuedAt: Date.now(),
+  };
+
+  const wrongChain = await postJson(baseUrl, "/api/evidence/prepare", {
+    ...baseEvidence,
+    chainId: 968,
+  });
+  assert.equal(wrongChain.status, 400);
+  assert.match((await wrongChain.json()).error, /chain ID 677/i);
+
+  const wrongContract = await postJson(baseUrl, "/api/evidence/prepare", {
+    ...baseEvidence,
+    contractAddress: Wallet.createRandom().address,
+  });
+  assert.equal(wrongContract.status, 400);
+  assert.match((await wrongContract.json()).error, /configured StakeMate contract/i);
+});

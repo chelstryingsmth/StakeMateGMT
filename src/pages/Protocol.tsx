@@ -32,7 +32,11 @@ import {
   goalLifecycle,
   pactLifecycle,
 } from '../components/CommitmentDisplay';
-import { BOT_CHAIN_CONFIG, isContractConfigured } from '../config/blockchain';
+import {
+  BOT_CHAIN_CONFIG,
+  isContractConfigured,
+  isEvidenceApiConfigured,
+} from '../config/blockchain';
 import { usePacts, useSoloGoals } from '../hooks/usePacts';
 import { useWallet } from '../hooks/useWallet';
 import {
@@ -88,6 +92,9 @@ const normalizeAddress = (address: string) => address.trim().toLowerCase();
 
 const isCompatibleAddress = (address: string) =>
   isAddress(normalizeAddress(address));
+
+const isMainnet = BOT_CHAIN_CONFIG.networkName === 'mainnet';
+const defaultStake = isMainnet ? '0.01' : '1';
 
 const shortAddress = (address: string) =>
   `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -242,14 +249,16 @@ function ConnectGate({ evidenceOnline }: { evidenceOnline: boolean | null }) {
           <small>
             {wallet.connected
               ? `${wallet.balance.toFixed(4)} BOT · ${wallet.network}`
-              : 'Connect MetaMask or BO Wallet on BOT Chain Testnet'}
+              : `Connect MetaMask or BO Wallet on ${BOT_CHAIN_CONFIG.chainName}`}
           </small>
         </span>
       </div>
       <div className="service-state">
         <i className={evidenceOnline ? 'online' : ''} />
         Evidence service{' '}
-        {evidenceOnline === null
+        {!isEvidenceApiConfigured
+          ? 'not configured'
+          : evidenceOnline === null
           ? 'checking'
           : evidenceOnline
             ? 'online'
@@ -322,9 +331,10 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
   const [title, setTitle] = useState('');
   const [verifier, setVerifier] = useState('');
   const [failureRecipient, setFailureRecipient] = useState('');
-  const [stake, setStake] = useState('1');
+  const [stake, setStake] = useState(defaultStake);
   const [durationDays, setDurationDays] = useState('14');
   const [reviewHours, setReviewHours] = useState('24');
+  const [mainnetConfirmed, setMainnetConfirmed] = useState(false);
   const { busy, message, progress, run } = useProtocolAction(afterCreate);
 
   const addressesValid =
@@ -339,7 +349,11 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
     Number(durationDays) <= 365 &&
     Number(reviewHours) >= 1 &&
     Number(reviewHours) <= 168;
-  const formValid = Boolean(title.trim()) && addressesValid && amountsValid;
+  const formValid =
+    Boolean(title.trim()) &&
+    addressesValid &&
+    amountsValid &&
+    (!isMainnet || mainnetConfirmed);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -358,7 +372,10 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
         reviewPeriodSeconds: Math.round(Number(reviewHours) * 3_600),
       }),
     );
-    if (created) setTitle('');
+    if (created) {
+      setTitle('');
+      setMainnetConfirmed(false);
+    }
   };
 
   return (
@@ -432,6 +449,19 @@ function CreateSoloGoal({ afterCreate }: { afterCreate: () => Promise<void> }) {
           Rejected or ignored goals go to the neutral recipient—not the verifier.
         </span>
       </div>
+      {isMainnet && (
+        <label className="mainnet-confirm span-2">
+          <input
+            type="checkbox"
+            checked={mainnetConfirmed}
+            onChange={(event) => setMainnetConfirmed(event.target.checked)}
+          />
+          <span>
+            I understand this locks real BOT on mainnet and the transaction cannot
+            be reversed by StakeMate.
+          </span>
+        </label>
+      )}
       {(verifier || failureRecipient) && !addressesValid && (
         <small className="error-text span-2">
           Enter two valid, different addresses that are also different from your
@@ -470,10 +500,11 @@ function CreateTwoPersonPact({
   const [title, setTitle] = useState('');
   const [partner, setPartner] = useState('');
   const [failureRecipient, setFailureRecipient] = useState('');
-  const [stake, setStake] = useState('1');
+  const [stake, setStake] = useState(defaultStake);
   const [duration, setDuration] = useState('30');
   const [required, setRequired] = useState('25');
   const [reviewHours, setReviewHours] = useState('24');
+  const [mainnetConfirmed, setMainnetConfirmed] = useState(false);
   const { busy, message, progress, run } = useProtocolAction(afterCreate);
 
   const addressesValid =
@@ -493,7 +524,11 @@ function CreateTwoPersonPact({
         Number(required) >= 1 &&
         Number(required) <= durationNumber
       : Number(reviewHours) >= 1 && Number(reviewHours) <= 168);
-  const formValid = Boolean(title.trim()) && addressesValid && rulesValid;
+  const formValid =
+    Boolean(title.trim()) &&
+    addressesValid &&
+    rulesValid &&
+    (!isMainnet || mainnetConfirmed);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -514,7 +549,10 @@ function CreateTwoPersonPact({
         mode,
       }),
     );
-    if (created) setTitle('');
+    if (created) {
+      setTitle('');
+      setMainnetConfirmed(false);
+    }
   };
 
   return (
@@ -619,6 +657,19 @@ function CreateTwoPersonPact({
           settle to the independent neutral recipient.
         </span>
       </div>
+      {isMainnet && (
+        <label className="mainnet-confirm span-2">
+          <input
+            type="checkbox"
+            checked={mainnetConfirmed}
+            onChange={(event) => setMainnetConfirmed(event.target.checked)}
+          />
+          <span>
+            I understand both participants will lock real BOT on mainnet and
+            settlement is controlled by the contract rules.
+          </span>
+        </label>
+      )}
       {(partner || failureRecipient) && !addressesValid && (
         <small className="error-text span-2">
           Partner, creator, and neutral recipient must be three different valid
@@ -1313,6 +1364,12 @@ export default function Protocol() {
 
   useEffect(() => {
     let active = true;
+    if (!isEvidenceApiConfigured) {
+      setEvidenceOnline(false);
+      return () => {
+        active = false;
+      };
+    }
     void fetch(`${BOT_CHAIN_CONFIG.evidenceApiUrl}/health`)
       .then((response) => {
         if (active) setEvidenceOnline(response.ok);
@@ -1517,6 +1574,17 @@ export default function Protocol() {
           View contract <ExternalLink />
         </a>
       </div>
+
+      {isMainnet && (
+        <div className="mainnet-risk-banner" role="alert">
+          <CircleAlert />
+          <span>
+            <b>BOT Chain Mainnet</b>
+            Transactions use real BOT. Check every address, amount, deadline, and
+            wallet prompt before signing.
+          </span>
+        </div>
+      )}
 
       <ConnectGate evidenceOnline={evidenceOnline} />
 

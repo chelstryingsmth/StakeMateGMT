@@ -1,62 +1,59 @@
 # StakeMate
 
-StakeMate is a real BOT Chain accountability application. A user can lock BOT
-behind a personal goal with a friend verifier, or two people can lock equal
-stakes in a shared pact. The application uses the deployed contract for every
-commitment, check-in, decision, settlement, and withdrawal—there is no frontend
-demo-data mode.
+StakeMate is a non-custodial BOT Chain accountability application. A user can
+lock BOT behind a personal goal with a friend verifier, or two people can lock
+equal stakes in a shared pact. Commitments, check-ins, decisions, settlement,
+and withdrawals are enforced by the deployed smart contract.
 
-Testnet contract:
-[`0xeBca3f1605b5F9da72Ce0674f76ef2Da8AD125d3`](https://scan.bohr.life/address/0xeBca3f1605b5F9da72Ce0674f76ef2Da8AD125d3)
+This branch is configured for the StakeMate deployment on BOT Chain Mainnet.
+
+## Mainnet status
+
+- Network: BOT Chain Mainnet
+- Chain ID: `677` (`0x2a5`)
+- RPC: `https://rpc.botchain.ai`
+- Explorer: `https://scan.botchain.ai`
+- Mainnet contract:
+  [`0x7A78C82D175dAa914eac7669C5d7Aecd020261fE`](https://scan.botchain.ai/address/0x7A78C82D175dAa914eac7669C5d7Aecd020261fE)
+- Deployment transaction:
+  [`0x8569a1aa173137927171fb393233f2c1f190b7cfb0fb1d0048b0c0fb2486eef3`](https://scan.botchain.ai/tx/0x8569a1aa173137927171fb393233f2c1f190b7cfb0fb1d0048b0c0fb2486eef3)
+
+The previous testnet deployment remains available at
+[`0xeBca3f1605b5F9da72Ce0674f76ef2Da8AD125d3`](https://scan.bohr.life/address/0xeBca3f1605b5F9da72Ce0674f76ef2Da8AD125d3).
+Testnet commitments do not move to mainnet; the same contract code must be
+deployed again and will receive a new address.
+
+Read [MAINNET_DEPLOYMENT.md](MAINNET_DEPLOYMENT.md) before deploying or
+publishing this branch.
 
 ## What works
 
-- Wallet connection, network switching, account restoration, and live balance
+- Wallet connection, network switching, restoration, and live BOT balance
 - Personal goals with an owner, verifier, and independent failure recipient
-- Verifier acceptance before a solo goal becomes irreversible
-- Signed evidence submission and replacement before the goal deadline
-- Verifier approval or rejection during the agreed review window
-- Permissionless expiry when a verifier ignores the review
+- Verifier acceptance, signed evidence, approval/rejection, and expiry
 - Two-person pacts with equal stakes
-- Daily on-chain check-ins with one check-in per wallet per day
-- Signed final evidence with cross-review by the other participant
+- Daily on-chain check-ins or partner-reviewed evidence
 - Deadline-aware finalization and neutral-recipient forfeiture
-- Claimable-balance display and pull-payment withdrawals
-- Explorer links for the deployment, wallets, and confirmed transactions
+- Pull-payment withdrawals and claimable-balance display
+- Public receipts and explorer links
+- Mainnet warnings and explicit real-BOT confirmation before creating a stake
 
-## Run StakeMate
+## Local development
 
-Install dependencies, then copy `.env.example` to `.env`.
+For safe local testing, copy the testnet template:
 
-```bash
+```bat
+copy .env.testnet.example .env
 npm install
-copy .env.example .env
 npm start
 ```
 
-`npm start` launches both services:
+`npm start` launches the website at `http://localhost:5173` and the evidence API
+at `http://localhost:8787`.
 
-- website: `http://localhost:5173`
-- evidence API: `http://localhost:8787`
-
-If you prefer separate terminals, use:
-
-```bash
-npm run backend
-npm run dev
-```
-
-Open the website in a browser with MetaMask or BO Wallet, connect to BOT Chain
-Testnet, and use the `/app` workspace. Testnet BOT is still real testnet currency:
-review addresses, rules, and amounts in the wallet confirmation before signing.
-
-## Routes
-
-- `/` — product landing page
-- `/app` — live contract workspace
-
-Old prototype routes redirect to `/app`, so users cannot accidentally enter a
-simulated dashboard.
+For a mainnet release, copy `.env.example` to `.env.production`, then fill in
+the public HTTPS evidence API URL. The mainnet contract address is already
+configured. Do not publish signed-evidence features with the API URL blank.
 
 ## Verify the project
 
@@ -66,37 +63,17 @@ npm run check
 npm run build
 ```
 
-The contract suite covers escrow, roles, check-ins, proof review, deadlines,
-settlement, refunds, solo goals, and withdrawals. The backend suite covers
-canonical evidence preparation, wallet-signature verification, storage, and
-commitment isolation.
-
 ## Project layout
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | React/Vite application and contract integration |
+| `src/` | React/Vite frontend and contract integration |
 | `contracts/StakeMate.sol` | Escrow, verification, and settlement rules |
-| `backend/src/` | Signed-evidence API and read-only chain API |
-| `scripts/` | Local startup, deployment, and console demonstrations |
+| `backend/src/` | Signed-evidence and read-only chain API |
+| `scripts/` | Startup, deployment, and demonstration scripts |
 | `test/` | Smart-contract tests |
 | `backend/test/` | Evidence API tests |
 | `remix/StakeMate.sol` | Remix-ready copy of the tested contract |
 
-## Evidence flow
-
-1. The app asks the API to canonicalize the evidence metadata.
-2. The user signs that canonical record with their wallet.
-3. The API verifies the signer and stores the signed record.
-4. The app anchors the record’s digest and public URI on-chain.
-5. The authorized reviewer records approval or rejection on-chain.
-
-The evidence API has no wallet private key and cannot move funds. Never place a
-private key in a `VITE_` environment variable.
-
-## Network
-
-| Network | Chain ID | RPC | Explorer |
-| --- | ---: | --- | --- |
-| BOT Chain Testnet | 968 | `https://rpc.bohr.life` | `https://scan.bohr.life` |
-| BOT Chain Mainnet | 677 | `https://rpc.botchain.ai` | `https://scan.botchain.ai` |
+The evidence API never receives a wallet private key and cannot move funds.
+Never place a private key in a `VITE_` variable or commit one to Git.

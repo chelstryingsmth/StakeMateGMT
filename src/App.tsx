@@ -198,7 +198,7 @@ function Landing() {
     <Shell>
       <section className="hero">
         <div className="eyebrow">
-          <ShieldCheck size={15} /> Live on BOT Chain Testnet
+          <ShieldCheck size={15} /> Live on {BOT_CHAIN_CONFIG.chainName}
         </div>
         <h1>
           Put real stakes behind
